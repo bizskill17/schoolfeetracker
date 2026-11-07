@@ -11,10 +11,9 @@ Built with PHP 8 + MySQL. Runs on any normal shared hosting (Hostinger, etc.). N
 This repository deploys to Hostinger shared hosting over FTP with `.github/workflows/deploy.yml`.
 
 1. **Repository secrets** (GitHub → Settings → Secrets and variables → Actions): `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, and `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`. The workflow checks these exist; values are never printed.
-2. **Where files go:** the workflow uploads the repository root to the FTP account's root folder (`server-dir: ./`). Point the FTP account at the folder the site is served from (usually `public_html` of the domain or sub-domain).
-3. **Dry run:** the workflow currently runs with `dry-run: true`, which only *tests* the FTP connection and changes no files. When you are ready to publish, change it to `false` in `deploy.yml`.
-4. **Never deployed (kept on the server):** `uploads/` (student photos and documents), `.env` files, `*.sql`, `*.zip`. Redeploying never overwrites school data or uploaded files, and the database is never touched by the deploy.
-5. **First visit after the first deploy:** open `https://yourdomain/install/` once (see below). The database password is entered there and saved **on the server only**, in `schoolfee-config.php` one folder above `public_html`, where a browser can never reach it. Later deploys do not overwrite it.
+2. **Where files go:** every push to `main` uploads the app with `lftp` into the FTP account's root folder, which on this Hostinger account is the website folder (`public_html`). Uploads only – nothing on the server is deleted.
+3. **Never deployed (kept on the server):** `uploads/` (student photos and documents), `.env` files, `*.sql`, `*.zip`. Redeploying never overwrites school data or uploaded files, and the database is never touched by the deploy.
+4. **First visit after the first deploy:** open `https://yourdomain/install/` once (see below). The database password is entered there and saved **on the server only**, in `schoolfee-config.php` one folder above `public_html`, where a browser can never reach it. Later deploys do not overwrite it.
 
 ### Database connection – how the app finds its settings
 In this order: (1) environment variables `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`; (2) `schoolfee-config.php` one folder **above** the app; (3) `config.php` in the app folder (blocked from the web by `.htaccess`). No credentials are stored in this repository – see `config.sample.php` for the format.
