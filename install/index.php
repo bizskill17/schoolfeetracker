@@ -32,8 +32,21 @@ function write_config(array $c): string
     throw new RuntimeException('Could not save the database settings. Create schoolfee-config.php one folder above the app (see config.sample.php).');
 }
 
-if (file_exists($lock)) {
-    $msg = 'Already installed. For security, delete the "install" folder from your server.';
+/** Installed already? Lock file present, or server settings exist and the app already has users. */
+function already_installed(?array $cfg, string $lock): bool
+{
+    if (file_exists($lock)) return true;
+    if (!$cfg) return false;
+    try {
+        $pdo = new PDO(db_dsn($cfg), $cfg['db_user'], $cfg['db_pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]);
+        return (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+if (already_installed($serverCfg, $lock)) {
+    $msg = 'School Manager is already installed. This setup page is switched off.';
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $in = array_map(fn($v) => is_string($v) ? trim($v) : $v, $_POST);
     try {
@@ -128,8 +141,8 @@ if (file_exists($lock)) {
 <link href="assets/lib/bootstrap/bootstrap.min.css" rel="stylesheet"></head>
 <body class="bg-light"><div class="container py-4" style="max-width:720px">
 <h3>School Manager – Setup</h3>
-<?php if ($msg): ?><div class="alert alert-<?= $ok ? 'success' : (file_exists($lock) ? 'info' : 'danger') ?>"><?= hh($msg) ?></div><?php endif; ?>
-<?php if ($ok || file_exists($lock)): ?><a class="btn btn-primary" href="../index.php">Go to login</a>
+<?php if ($msg): ?><div class="alert alert-<?= $ok ? 'success' : (already_installed($serverCfg, $lock) ? 'info' : 'danger') ?>"><?= hh($msg) ?></div><?php endif; ?>
+<?php if ($ok || already_installed($serverCfg, $lock)): ?><a class="btn btn-primary" href="../index.php">Go to login</a>
 <?php else: ?>
 <form method="post" class="card card-body">
   <h6>1. Database</h6>
