@@ -1,0 +1,21 @@
+# Secrets and server-only files – never commit
+config.php
+schoolfee-config.php
+.env
+.env.*
+*.pem
+*.key
+
+# Data created on the server
+uploads/*
+!uploads/.htaccess
+install/installed.lock
+backups/
+*.sql
+*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
