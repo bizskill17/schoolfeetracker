@@ -38,28 +38,13 @@ jobs:
           echo "Database secrets are configured (values not displayed)."
           echo "Note: DB_HOST=localhost refers to Hostinger from the hosted app, not from the GitHub runner."
 
-      - name: Find the website folder on the FTP account
-        id: target
+      - name: Deploy over FTP (uploads only; never deletes school data)
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-        run: |
-          HOST="${FTP_SERVER#ftp://}"; HOST="${HOST%/}"
-          LISTING=$(curl -s --list-only --max-time 30 --user "$FTP_USERNAME:$FTP_PASSWORD" "ftp://$HOST/" || true)
-          if [ -z "$LISTING" ] && ! curl -s --list-only --max-time 30 --user "$FTP_USERNAME:$FTP_PASSWORD" "ftp://$HOST/" -o /dev/null; then
-            echo "::error::Could not log in to the FTP server to list folders."; exit 1
-          fi
-          if echo "$LISTING" | tr -d '\r' | grep -qx "public_html"; then DIR="./public_html/"; else DIR="./"; fi
-          echo "Deploying into: $DIR"
-          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy over FTP (upload only, never deletes server files)
-        env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          TARGET_DIR: ${{ steps.target.outputs.dir }}
+          # The FTP login of this Hostinger account opens directly in the website folder (public_html).
+          TARGET_DIR: ./
         run: |
           sudo apt-get -qq update >/dev/null && sudo apt-get -qq install -y lftp >/dev/null
           HOST="${FTP_SERVER#ftp://}"; HOST="${HOST%/}"
@@ -71,6 +56,10 @@ jobs:
           set net:max-retries 5
           set net:reconnect-interval-base 5
           set net:timeout 30
+          set cmd:fail-exit no
+          # One-time clean-up: an earlier run uploaded a copy of this app into a nested public_html/ folder.
+          # Remove it only if it is that copy (it contains this app's inc/config_loader.php).
+          cls -1 public_html/inc/config_loader.php && rm -r public_html
           set cmd:fail-exit yes
           mirror --reverse --verbose --parallel=2 --no-perms \
             --exclude-glob .git* --exclude-glob .git*/ --exclude-glob .github/ \
