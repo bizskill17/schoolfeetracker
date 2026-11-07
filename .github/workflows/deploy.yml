@@ -54,28 +54,30 @@ jobs:
           echo "Deploying into: $DIR"
           echo "dir=$DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy over FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: ./
-          server-dir: ${{ steps.target.outputs.dir }}
-          dry-run: false
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            **/node_modules/**
-            **/.env
-            **/.env.*
-            **/vendor/**
-            **/uploads/**
-            **/storage/**
-            **/backups/**
-            **/*.sql
-            **/*.zip
+      - name: Deploy over FTP (upload only, never deletes server files)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          TARGET_DIR: ${{ steps.target.outputs.dir }}
+        run: |
+          sudo apt-get -qq update >/dev/null && sudo apt-get -qq install -y lftp >/dev/null
+          HOST="${FTP_SERVER#ftp://}"; HOST="${HOST%/}"
+          # Excludes: same as before – server-side data and secrets are never uploaded or overwritten.
+          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" -p 21 "$HOST" <<LFTP
+          set ftp:ssl-allow yes
+          set ssl:verify-certificate no
+          set ftp:passive-mode yes
+          set net:max-retries 5
+          set net:reconnect-interval-base 5
+          set net:timeout 30
+          set cmd:fail-exit yes
+          mirror --reverse --verbose --parallel=2 --no-perms \
+            --exclude-glob .git* --exclude-glob .git*/ --exclude-glob .github/ \
+            --exclude-glob node_modules/ --exclude-glob .env --exclude-glob .env.* \
+            --exclude-glob vendor/ --exclude-glob uploads/ --exclude-glob storage/ --exclude-glob backups/ \
+            --exclude-glob *.sql --exclude-glob *.zip \
+            ./ "$TARGET_DIR"
+          bye
+          LFTP
+          echo "Deploy finished into $TARGET_DIR"
