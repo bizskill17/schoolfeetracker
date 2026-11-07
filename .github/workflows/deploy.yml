@@ -23,6 +23,21 @@ jobs:
             exit 1
           fi
 
+      - name: Verify database deployment secrets
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          if [ -z "$DB_HOST" ] || [ -z "$DB_PORT" ] || [ -z "$DB_DATABASE" ] || [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "::error::One or more database secrets are missing (DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD)."
+            exit 1
+          fi
+          echo "Database secrets are configured (values not displayed)."
+          echo "Note: DB_HOST=localhost refers to Hostinger from the hosted app, not from the GitHub runner."
+
       - name: Test FTP deployment (no files changed)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
